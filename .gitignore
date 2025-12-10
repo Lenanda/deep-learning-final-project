@@ -1,0 +1,19 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+venv/
+env/
+.env
+
+# IDE settings
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/
+
+# MacOS junk
+.DS_Store
