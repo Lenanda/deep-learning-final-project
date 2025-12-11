@@ -13,33 +13,14 @@ from tensorflow.keras.layers import (Embedding, SpatialDropout1D, Bidirectional,
                                      Dense, Dropout, Input)
 
 # ==========================================
-# 0. KONFIGURASI HALAMAN & DEBUGGING
-# ==========================================
-st.set_page_config(page_title="Deep Learning Emotion Detection", layout="centered")
-
-# Fungsi cerdas untuk mencari folder assets secara otomatis
-def find_project_root():
-    # 1. Cek folder di mana main.py berada
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    if os.path.exists(os.path.join(current_dir, 'assets')):
-        return current_dir
-    
-    # 2. Cek satu folder di atasnya (parent/root)
-    parent_dir = os.path.dirname(current_dir)
-    if os.path.exists(os.path.join(parent_dir, 'assets')):
-        return parent_dir
-    
-    return None
-
-# ==========================================
 # 1. FUNGSI CLEANING
 # ==========================================
 def clean_text(text):
     text = str(text).lower()
-    text = re.sub(r'http\S+|www\.\S+', ' ', text)       
-    text = re.sub(r'@\w+', ' ', text)                   
-    text = re.sub(r'#', ' ', text)                      
-    text = re.sub(r'\s+', ' ', text)                    
+    text = re.sub(r'http\S+|www\.\S+', ' ', text)       # URL
+    text = re.sub(r'@\w+', ' ', text)                   # mention
+    text = re.sub(r'#', ' ', text)                      # buang simbol #
+    text = re.sub(r'\s+', ' ', text)                    # spasi dobel
     text = text.strip()
     return text
 
@@ -48,22 +29,17 @@ def clean_text(text):
 # ==========================================
 @st.cache_resource
 def load_model_and_assets():
-    # Cari root project
-    project_root = find_project_root()
+    # --- UPDATE PATH LOGIC (PENTING) ---
+    # Mendapatkan lokasi file main.py saat ini (.../app)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    if project_root is None:
-        st.error("🚨 CRITICAL ERROR: Folder 'assets' tidak ditemukan!")
-        st.code(f"Posisi file main.py saat ini: {os.path.dirname(os.path.abspath(__file__))}")
-        st.warning("Pastikan struktur folder Anda: deep-learning-final-project/assets")
-        return None, None, None, None
-
-    # Set path lengkap
+    # Naik satu level ke root folder (.../deep-learning-final-project)
+    project_root = os.path.dirname(current_dir)
+    
+    # Akses folder assets dari root
     tokenizer_path = os.path.join(project_root, 'assets', 'tokenizer.json')
     label_encoder_path = os.path.join(project_root, 'assets', 'label_encoder.pkl')
     model_path = os.path.join(project_root, 'assets', 'best_cnn_bilstm.h5')
-
-    # Debugging Info (Akan hilang jika sukses)
-    # st.write(f"Mencoba memuat aset dari: {project_root}")
 
     # A. LOAD TOKENIZER
     try:
@@ -71,7 +47,7 @@ def load_model_and_assets():
             public_tokenizer_data = f.read()
             tokenizer = tokenizer_from_json(public_tokenizer_data)
     except FileNotFoundError:
-        st.error(f"❌ Tidak ditemukan: {tokenizer_path}")
+        st.error(f"❌ File tidak ditemukan: {tokenizer_path}")
         return None, None, None, None
 
     # B. LOAD LABEL ENCODER
@@ -79,14 +55,13 @@ def load_model_and_assets():
         with open(label_encoder_path, 'rb') as f:
             le = pickle.load(f)
     except FileNotFoundError:
-        st.error(f"❌ Tidak ditemukan: {label_encoder_path}")
+        st.error(f"❌ File tidak ditemukan: {label_encoder_path}")
         return None, None, None, None
     
     label2id = {label: idx for idx, label in enumerate(le.classes_)}
     id2label = {idx: label for label, idx in label2id.items()}
 
-    # C. DEFINISI ARSITEKTUR MODEL
-    # Sesuaikan parameter ini dengan hasil diagnosa h5 Anda sebelumnya
+    # C. DEFINISI ARSITEKTUR MODEL (Sesuai diagnosa .h5 sebelumnya)
     vocab_size = 30000     
     embedding_dim = 200    
     max_len = 40           
@@ -95,10 +70,10 @@ def load_model_and_assets():
     inputs = Input(shape=(max_len,))
     x = Embedding(input_dim=vocab_size, output_dim=embedding_dim)(inputs)
     x = SpatialDropout1D(0.4)(x)
-    x = Bidirectional(LSTM(32, return_sequences=True))(x) 
-    x = Conv1D(64, kernel_size=3, padding='same', activation='relu')(x) 
+    x = Bidirectional(LSTM(32, return_sequences=True))(x) # 32 units
+    x = Conv1D(64, kernel_size=3, padding='same', activation='relu')(x) # 64 filters
     x = GlobalMaxPooling1D()(x)
-    x = Dense(64, activation='relu')(x) 
+    x = Dense(64, activation='relu')(x) # 64 units
     x = Dropout(0.5)(x)
     outputs = Dense(num_classes, activation='softmax')(x)
 
@@ -109,7 +84,6 @@ def load_model_and_assets():
         model.load_weights(model_path)
     except Exception as e:
         st.error(f"❌ Gagal memuat bobot model: {e}")
-        st.warning("Tips: Cek apakah versi TensorFlow di requirements.txt sudah 'tensorflow==2.15.0'")
         return None, None, None, None
     
     return model, tokenizer, id2label, max_len
@@ -118,14 +92,16 @@ def load_model_and_assets():
 # 3. UI STREAMLIT
 # ==========================================
 def main_streamlit():
+    st.set_page_config(page_title="Deep Learning Emotion Detection", layout="centered")
+    
     st.title("🔮 Analisis Sentimen & Emosi")
     st.caption("Model: BiLSTM (32) + CNN (64) + Dense (64)")
 
-    # Load Model
+    # Load Model (Wajib di awal)
     model, tokenizer, id2label, max_len = load_model_and_assets()
 
     if model is None:
-        st.error("Aplikasi berhenti karena gagal memuat aset. Periksa pesan error di atas.")
+        st.warning("Aplikasi tidak dapat berjalan karena file aset bermasalah.")
         st.stop()
 
     # --- FITUR 1: PREDIKSI MANUAL ---
@@ -134,6 +110,7 @@ def main_streamlit():
 
     if st.button("Prediksi"):
         if user_input.strip() != "":
+            # Preprocessing & Prediksi
             cleaned = clean_text(user_input)
             seq = tokenizer.texts_to_sequences([cleaned])
             pad = pad_sequences(seq, maxlen=max_len, padding='post', truncating='post')
@@ -142,6 +119,7 @@ def main_streamlit():
             pred_id = probs.argmax()
             pred_label = id2label[pred_id]
             
+            # Tampilan Hasil
             st.divider()
             col1, col2 = st.columns([1, 2])
             
@@ -167,19 +145,20 @@ def main_streamlit():
     
     if st.checkbox("Tampilkan 12 Contoh dengan Confidence Terbaik"):
         try:
-            # Gunakan logika pencari root yang sama untuk folder 'data'
-            project_root = find_project_root()
-            if project_root:
-                test_path = os.path.join(project_root, "data", "test.csv")
-            else:
-                test_path = "data/test.csv" # Fallback
-
+            # --- UPDATE PATH LOGIC UNTUK DATA ---
+            current_dir = os.path.dirname(os.path.abspath(__file__)) # Folder app
+            project_root = os.path.dirname(current_dir)              # Folder root
+            
+            # File test.csv ada di dalam folder 'data' di root
+            test_path = os.path.join(project_root, "data", "test.csv")
+            
             if not os.path.exists(test_path):
                 st.error(f"File test.csv tidak ditemukan di: {test_path}")
             else:
                 df_test = pd.read_csv(test_path)
                 st.info(f"Memproses {len(df_test)} data dari test.csv...")
                 
+                # Preprocessing Massal
                 progress_bar = st.progress(0)
                 
                 texts = df_test['tweets'].astype(str).tolist()
@@ -190,9 +169,11 @@ def main_streamlit():
                 
                 progress_bar.progress(50)
                 
+                # Prediksi Massal
                 predictions = model.predict(pads, verbose=0)
                 progress_bar.progress(100)
                 
+                # Olah Hasil
                 pred_indices = np.argmax(predictions, axis=1)
                 confidences = np.max(predictions, axis=1)
                 pred_labels = [id2label[i] for i in pred_indices]
@@ -201,11 +182,15 @@ def main_streamlit():
                 df_results['pred_label'] = pred_labels
                 df_results['confidence'] = confidences
                 
+                # Tampilkan Top 3 per Kategori
                 st.write("### 🔥 Top 3 Teks Paling Yakin (Highest Confidence) per Kategori")
+                
                 unique_labels = sorted(list(set(pred_labels)))
                 
                 for label in unique_labels:
                     st.markdown(f"#### Kategori: **{label.upper()}**")
+                    
+                    # Filter & Sort
                     top_df = df_results[df_results['pred_label'] == label].sort_values(by='confidence', ascending=False).head(3)
                     
                     for _, row in top_df.iterrows():
