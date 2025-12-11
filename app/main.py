@@ -13,30 +13,30 @@ from tensorflow.keras.layers import (Embedding, SpatialDropout1D, Bidirectional,
                                      Dense, Dropout, Input)
 
 # ==========================================
-# 1. FUNGSI CLEANING
+# 1. TEXT CLEANING FUNCTION
 # ==========================================
 def clean_text(text):
     text = str(text).lower()
-    text = re.sub(r'http\S+|www\.\S+', ' ', text)       # URL
-    text = re.sub(r'@\w+', ' ', text)                   # mention
-    text = re.sub(r'#', ' ', text)                      # buang simbol #
-    text = re.sub(r'\s+', ' ', text)                    # spasi dobel
+    text = re.sub(r'http\S+|www\.\S+', ' ', text)       # Remove URLs
+    text = re.sub(r'@\w+', ' ', text)                   # Remove mentions
+    text = re.sub(r'#', ' ', text)                      # Remove hashtags symbol
+    text = re.sub(r'\s+', ' ', text)                    # Remove double spaces
     text = text.strip()
     return text
 
 # ==========================================
-# 2. LOAD MODEL & ASET
+# 2. LOAD MODEL & ASSETS
 # ==========================================
 @st.cache_resource
 def load_model_and_assets():
-    # --- UPDATE PATH LOGIC (PENTING) ---
-    # Mendapatkan lokasi file main.py saat ini (.../app)
+    # --- PATH CONFIGURATION ---
+    # Get current directory (.../app)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Naik satu level ke root folder (.../deep-learning-final-project)
+    # Go up one level to project root (.../deep-learning-final-project)
     project_root = os.path.dirname(current_dir)
     
-    # Akses folder assets dari root
+    # Define paths to assets
     tokenizer_path = os.path.join(project_root, 'assets', 'tokenizer.json')
     label_encoder_path = os.path.join(project_root, 'assets', 'label_encoder.pkl')
     model_path = os.path.join(project_root, 'assets', 'best_cnn_bilstm.h5')
@@ -47,7 +47,7 @@ def load_model_and_assets():
             public_tokenizer_data = f.read()
             tokenizer = tokenizer_from_json(public_tokenizer_data)
     except FileNotFoundError:
-        st.error(f"❌ File tidak ditemukan: {tokenizer_path}")
+        st.error(f"❌ File not found: {tokenizer_path}")
         return None, None, None, None
 
     # B. LOAD LABEL ENCODER
@@ -55,13 +55,14 @@ def load_model_and_assets():
         with open(label_encoder_path, 'rb') as f:
             le = pickle.load(f)
     except FileNotFoundError:
-        st.error(f"❌ File tidak ditemukan: {label_encoder_path}")
+        st.error(f"❌ File not found: {label_encoder_path}")
         return None, None, None, None
     
     label2id = {label: idx for idx, label in enumerate(le.classes_)}
     id2label = {idx: label for label, idx in label2id.items()}
 
-    # C. DEFINISI ARSITEKTUR MODEL (Sesuai diagnosa .h5 sebelumnya)
+    # C. DEFINE MODEL ARCHITECTURE
+    # (Must match the saved .h5 file structure)
     vocab_size = 30000     
     embedding_dim = 200    
     max_len = 40           
@@ -83,34 +84,34 @@ def load_model_and_assets():
     try:
         model.load_weights(model_path)
     except Exception as e:
-        st.error(f"❌ Gagal memuat bobot model: {e}")
+        st.error(f"❌ Failed to load model weights: {e}")
         return None, None, None, None
     
     return model, tokenizer, id2label, max_len
 
 # ==========================================
-# 3. UI STREAMLIT
+# 3. STREAMLIT UI (ENGLISH VERSION)
 # ==========================================
 def main_streamlit():
     st.set_page_config(page_title="Deep Learning Emotion Detection", layout="centered")
     
-    st.title("🔮 Analisis Sentimen & Emosi")
-    st.caption("Model: BiLSTM (32) + CNN (64) + Dense (64)")
+    st.title("🔮 Sentiment & Emotion Analysis")
+    st.caption("Architecture: Embedding + BiLSTM (32) + CNN (64) + Dense (64)")
 
-    # Load Model (Wajib di awal)
+    # Load Model
     model, tokenizer, id2label, max_len = load_model_and_assets()
 
     if model is None:
-        st.warning("Aplikasi tidak dapat berjalan karena file aset bermasalah.")
+        st.warning("Application cannot start because asset files are missing.")
         st.stop()
 
-    # --- FITUR 1: PREDIKSI MANUAL ---
-    st.subheader("Coba Prediksi")
-    user_input = st.text_area("Masukkan teks:", height=100, placeholder="Contoh: Saya sangat senang hari ini!")
+    # --- FEATURE 1: MANUAL PREDICTION ---
+    st.subheader("Try it out")
+    user_input = st.text_area("Enter text to analyze:", height=100, placeholder="Example: I am so happy today because the weather is nice!")
 
-    if st.button("Prediksi"):
+    if st.button("Predict"):
         if user_input.strip() != "":
-            # Preprocessing & Prediksi
+            # Preprocessing & Prediction
             cleaned = clean_text(user_input)
             seq = tokenizer.texts_to_sequences([cleaned])
             pad = pad_sequences(seq, maxlen=max_len, padding='post', truncating='post')
@@ -119,46 +120,47 @@ def main_streamlit():
             pred_id = probs.argmax()
             pred_label = id2label[pred_id]
             
-            # Tampilan Hasil
+            # Display Results
             st.divider()
             col1, col2 = st.columns([1, 2])
             
             with col1:
-                st.markdown("### Hasil")
+                st.markdown("### Prediction")
                 st.success(f"**{pred_label.upper()}**")
                 confidence = probs.max() * 100
-                st.metric("Confidence", f"{confidence:.2f}%")
+                st.metric("Confidence Score", f"{confidence:.2f}%")
             
             with col2:
-                st.markdown("### Probabilitas")
+                st.markdown("### Probability Distribution")
                 prob_df = pd.DataFrame({
-                    "Label": list(id2label.values()),
+                    "Class": list(id2label.values()),
                     "Probability": probs
                 })
-                st.bar_chart(prob_df.set_index("Label"))
+                # Capitalize labels for better display
+                prob_df["Class"] = prob_df["Class"].str.capitalize()
+                st.bar_chart(prob_df.set_index("Class"))
         else:
-            st.warning("Mohon masukkan teks.")
+            st.warning("Please enter some text first.")
 
-    # --- FITUR 2: ANALISIS TEST.CSV (BATCH) ---
+    # --- FEATURE 2: BATCH ANALYSIS (TEST.CSV) ---
     st.divider()
-    st.subheader("📊 Analisis Data Test (Batch Prediction)")
+    st.subheader("📊 Test Data Analysis (Batch Prediction)")
     
-    if st.checkbox("Tampilkan 12 Contoh dengan Confidence Terbaik"):
+    if st.checkbox("Show Top Confidence Examples from Test Data"):
         try:
-            # --- UPDATE PATH LOGIC UNTUK DATA ---
-            current_dir = os.path.dirname(os.path.abspath(__file__)) # Folder app
-            project_root = os.path.dirname(current_dir)              # Folder root
+            # --- PATH LOGIC FOR DATA ---
+            current_dir = os.path.dirname(os.path.abspath(__file__)) 
+            project_root = os.path.dirname(current_dir)              
             
-            # File test.csv ada di dalam folder 'data' di root
             test_path = os.path.join(project_root, "data", "test.csv")
             
             if not os.path.exists(test_path):
-                st.error(f"File test.csv tidak ditemukan di: {test_path}")
+                st.error(f"File test.csv not found at: {test_path}")
             else:
                 df_test = pd.read_csv(test_path)
-                st.info(f"Memproses {len(df_test)} data dari test.csv...")
+                st.info(f"Processing {len(df_test)} samples from test.csv...")
                 
-                # Preprocessing Massal
+                # Batch Preprocessing
                 progress_bar = st.progress(0)
                 
                 texts = df_test['tweets'].astype(str).tolist()
@@ -169,11 +171,11 @@ def main_streamlit():
                 
                 progress_bar.progress(50)
                 
-                # Prediksi Massal
+                # Batch Prediction
                 predictions = model.predict(pads, verbose=0)
                 progress_bar.progress(100)
                 
-                # Olah Hasil
+                # Process Results
                 pred_indices = np.argmax(predictions, axis=1)
                 confidences = np.max(predictions, axis=1)
                 pred_labels = [id2label[i] for i in pred_indices]
@@ -182,26 +184,26 @@ def main_streamlit():
                 df_results['pred_label'] = pred_labels
                 df_results['confidence'] = confidences
                 
-                # Tampilkan Top 3 per Kategori
-                st.write("### 🔥 Top 3 Teks Paling Yakin (Highest Confidence) per Kategori")
+                # Display Top 3 per Category
+                st.write("### 🔥 Top 3 Highest Confidence Examples per Category")
                 
                 unique_labels = sorted(list(set(pred_labels)))
                 
                 for label in unique_labels:
-                    st.markdown(f"#### Kategori: **{label.upper()}**")
+                    st.markdown(f"#### Category: **{label.upper()}**")
                     
                     # Filter & Sort
                     top_df = df_results[df_results['pred_label'] == label].sort_values(by='confidence', ascending=False).head(3)
                     
                     for _, row in top_df.iterrows():
                         with st.expander(f"🎯 {row['confidence']*100:.1f}% Confidence - {row['tweets'][:60]}..."):
-                            st.write(f"**Teks Asli:** {row['tweets']}")
-                            st.write(f"**Label Asli:** {row.get('class', 'N/A')}")
-                            st.write(f"**Prediksi:** {row['pred_label']}")
+                            st.write(f"**Original Text:** {row['tweets']}")
+                            st.write(f"**True Label:** {row.get('class', 'N/A')}")
+                            st.write(f"**Predicted:** {row['pred_label']}")
                             st.progress(float(row['confidence']))
                             
         except Exception as e:
-            st.error(f"Terjadi kesalahan saat memproses data: {e}")
+            st.error(f"An error occurred while processing data: {e}")
 
 if __name__ == '__main__':
     try:
