@@ -29,20 +29,17 @@ def clean_text(text):
 # ==========================================
 @st.cache_resource
 def load_model_and_assets():
-    # --- PERBAIKAN PATH (LOGIKA STRUKTUR BARU) ---
-    # Lokasi script ini: .../deep-learning-final-project/app/
+    # --- UPDATE PATH LOGIC (PENTING) ---
+    # Mendapatkan lokasi file main.py saat ini (.../app)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Lokasi root proyek: .../deep-learning-final-project/ (Naik satu level)
+    # Naik satu level ke root folder (.../deep-learning-final-project)
     project_root = os.path.dirname(current_dir)
-
-    # Path Absolut ke file aset di folder 'assets'
+    
+    # Akses folder assets dari root
     tokenizer_path = os.path.join(project_root, 'assets', 'tokenizer.json')
     label_encoder_path = os.path.join(project_root, 'assets', 'label_encoder.pkl')
     model_path = os.path.join(project_root, 'assets', 'best_cnn_bilstm.h5')
-
-    # Debugging Path (Opsional, akan muncul di log jika error)
-    # print(f"Mencari aset di: {project_root}")
 
     # A. LOAD TOKENIZER
     try:
@@ -64,7 +61,7 @@ def load_model_and_assets():
     label2id = {label: idx for idx, label in enumerate(le.classes_)}
     id2label = {idx: label for label, idx in label2id.items()}
 
-    # C. DEFINISI ARSITEKTUR MODEL (Sesuai diagnosa file .h5 sebelumnya)
+    # C. DEFINISI ARSITEKTUR MODEL (Sesuai diagnosa .h5 sebelumnya)
     vocab_size = 30000     
     embedding_dim = 200    
     max_len = 40           
@@ -73,10 +70,10 @@ def load_model_and_assets():
     inputs = Input(shape=(max_len,))
     x = Embedding(input_dim=vocab_size, output_dim=embedding_dim)(inputs)
     x = SpatialDropout1D(0.4)(x)
-    x = Bidirectional(LSTM(32, return_sequences=True))(x) # 32 units sesuai h5
-    x = Conv1D(64, kernel_size=3, padding='same', activation='relu')(x) # 64 filters sesuai h5
+    x = Bidirectional(LSTM(32, return_sequences=True))(x) # 32 units
+    x = Conv1D(64, kernel_size=3, padding='same', activation='relu')(x) # 64 filters
     x = GlobalMaxPooling1D()(x)
-    x = Dense(64, activation='relu')(x) # 64 units sesuai h5
+    x = Dense(64, activation='relu')(x) # 64 units
     x = Dropout(0.5)(x)
     outputs = Dense(num_classes, activation='softmax')(x)
 
@@ -87,7 +84,6 @@ def load_model_and_assets():
         model.load_weights(model_path)
     except Exception as e:
         st.error(f"❌ Gagal memuat bobot model: {e}")
-        st.info(f"Path model yang dicoba: {model_path}")
         return None, None, None, None
     
     return model, tokenizer, id2label, max_len
@@ -99,13 +95,13 @@ def main_streamlit():
     st.set_page_config(page_title="Deep Learning Emotion Detection", layout="centered")
     
     st.title("🔮 Analisis Sentimen & Emosi")
-    st.caption("Model: BiLSTM + CNN (Structured Repo Version)")
+    st.caption("Model: BiLSTM (32) + CNN (64) + Dense (64)")
 
-    # Load Model
+    # Load Model (Wajib di awal)
     model, tokenizer, id2label, max_len = load_model_and_assets()
 
     if model is None:
-        st.warning("Aplikasi tidak dapat berjalan karena file aset tidak ditemukan.")
+        st.warning("Aplikasi tidak dapat berjalan karena file aset bermasalah.")
         st.stop()
 
     # --- FITUR 1: PREDIKSI MANUAL ---
@@ -149,12 +145,12 @@ def main_streamlit():
     
     if st.checkbox("Tampilkan 12 Contoh dengan Confidence Terbaik"):
         try:
-            # --- PERBAIKAN PATH DATASET ---
-            current_dir = os.path.dirname(os.path.abspath(__file__)) # .../app
-            project_root = os.path.dirname(current_dir)              # .../root
+            # --- UPDATE PATH LOGIC UNTUK DATA ---
+            current_dir = os.path.dirname(os.path.abspath(__file__)) # Folder app
+            project_root = os.path.dirname(current_dir)              # Folder root
             
-            # File test.csv ada di folder 'data' di root
-            test_path = os.path.join(project_root, 'data', 'test.csv')
+            # File test.csv ada di dalam folder 'data' di root
+            test_path = os.path.join(project_root, "data", "test.csv")
             
             if not os.path.exists(test_path):
                 st.error(f"File test.csv tidak ditemukan di: {test_path}")
@@ -187,7 +183,7 @@ def main_streamlit():
                 df_results['confidence'] = confidences
                 
                 # Tampilkan Top 3 per Kategori
-                st.write("### 🔥 Top 3 Teks Paling Yakin per Kategori")
+                st.write("### 🔥 Top 3 Teks Paling Yakin (Highest Confidence) per Kategori")
                 
                 unique_labels = sorted(list(set(pred_labels)))
                 
@@ -198,7 +194,7 @@ def main_streamlit():
                     top_df = df_results[df_results['pred_label'] == label].sort_values(by='confidence', ascending=False).head(3)
                     
                     for _, row in top_df.iterrows():
-                        with st.expander(f"🎯 {row['confidence']*100:.1f}% - {row['tweets'][:60]}..."):
+                        with st.expander(f"🎯 {row['confidence']*100:.1f}% Confidence - {row['tweets'][:60]}..."):
                             st.write(f"**Teks Asli:** {row['tweets']}")
                             st.write(f"**Label Asli:** {row.get('class', 'N/A')}")
                             st.write(f"**Prediksi:** {row['pred_label']}")
