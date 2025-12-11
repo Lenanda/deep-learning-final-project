@@ -1,17 +1,23 @@
-# Deep Learning Emotion Detection
+# 🚀 Emotion Detection App (Streamlit)
 
-Project ini adalah aplikasi web berbasis Streamlit untuk mendeteksi emosi dari teks (tweet) menggunakan metode Deep Learning (BiLSTM + CNN).
+Folder ini berisi *source code* untuk antarmuka pengguna (User Interface) berbasis web menggunakan **Streamlit**. Aplikasi ini memungkinkan pengguna untuk melakukan prediksi sentimen secara *real-time* menggunakan model yang telah dilatih.
 
-## 📂 Struktur Project
-Project ini disusun dengan struktur sebagai berikut:
-- `assets/`: Menyimpan model `.h5`, `tokenizer.json`, dan `label_encoder.pkl`.
-- `data/`: Menyimpan dataset (`train.csv` & `test.csv`).
-- `notebooks/`: File Jupyter Notebook untuk eksplorasi dan training model.
-- `main.py`: Script utama aplikasi Streamlit.
+## 🛠️ Fitur Aplikasi
 
-## 🚀 Cara Menjalankan Aplikasi
+1. **Manual Prediction**:
+   - Input teks bebas (kalimat/tweet).
+   - Output berupa prediksi kelas (Irony/Sarcasm/Regular/Figurative), skor confidence, dan grafik probabilitas.
+   
+2. **Batch Prediction**:
+   - Menganalisis data dari `data/test.csv`.
+   - Menampilkan contoh teks dengan tingkat keyakinan (confidence) tertinggi untuk setiap kategori emosi.
 
-### 1. Clone Repository
+## ⚙️ Cara Menjalankan Aplikasi
+
+Pastikan Anda berada di **root directory** proyek (`deep-learning-final-project/`) saat menjalankan perintah ini, agar path ke folder `assets/` terbaca dengan benar.
+
+### 1. Install Dependencies
+Pastikan library yang dibutuhkan sudah terinstall:
+
 ```bash
-git clone [https://github.com/](https://github.com/)[USERNAME_GITHUB_ANDA]/deep-learning-final-project.git
-cd deep-learning-final-project
+pip install -r requirements.txt
