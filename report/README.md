@@ -5,7 +5,7 @@ Direktori ini mengandungi dokumen rasmi, laporan akhir, dan bahan pembentangan b
 ## 📚 Senarai Dokumen
 
 ### 1. Laporan Akhir Projek
-* **Nama Fail:** `FINAL REPORT — TEXT CLASSIFICATION USING BiLSTM-CNN.docx`
+* **Nama Fail:** `FINAL REPORT Emotion Recognition.docx`
 * **Format:** Microsoft Word Document
 * **Penerangan:**
     Dokumen ini adalah laporan teknikal lengkap mengenai projek ini. Ia merangkumi:
