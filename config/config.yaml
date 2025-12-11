@@ -1,0 +1,29 @@
+# Konfigurasi Path File
+data:
+  train_path: "../data/raw/train.csv"
+  test_path: "../data/raw/test.csv"
+  processed_path: "../data/processed/"
+  max_len: 40
+  vocab_size: 30000
+
+# Parameter Model (Sesuai arsitektur final Anda)
+model:
+  embedding_dim: 200
+  lstm_units: 32
+  cnn_filters: 64
+  dense_units: 64
+  dropout_rate: 0.5
+  num_classes: 4
+
+# Hyperparameter Training
+training:
+  batch_size: 128
+  epochs: 25
+  learning_rate: 0.002
+  patience: 4 # Untuk Early Stopping
+
+# Lokasi Output
+outputs:
+  model_dir: "../outputs/models/"
+  logs_dir: "../outputs/logs/"
+  plots_dir: "../outputs/plots/"
