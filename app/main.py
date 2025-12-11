@@ -29,10 +29,20 @@ def clean_text(text):
 # ==========================================
 @st.cache_resource
 def load_model_and_assets():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    tokenizer_path = os.path.join(script_dir, 'assets', 'tokenizer.json')
-    label_encoder_path = os.path.join(script_dir, 'assets', 'label_encoder.pkl')
-    model_path = os.path.join(script_dir, 'assets', 'best_cnn_bilstm.h5')
+    # --- PERBAIKAN PATH (LOGIKA STRUKTUR BARU) ---
+    # Lokasi script ini: .../deep-learning-final-project/app/
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Lokasi root proyek: .../deep-learning-final-project/ (Naik satu level)
+    project_root = os.path.dirname(current_dir)
+
+    # Path Absolut ke file aset di folder 'assets'
+    tokenizer_path = os.path.join(project_root, 'assets', 'tokenizer.json')
+    label_encoder_path = os.path.join(project_root, 'assets', 'label_encoder.pkl')
+    model_path = os.path.join(project_root, 'assets', 'best_cnn_bilstm.h5')
+
+    # Debugging Path (Opsional, akan muncul di log jika error)
+    # print(f"Mencari aset di: {project_root}")
 
     # A. LOAD TOKENIZER
     try:
@@ -40,7 +50,7 @@ def load_model_and_assets():
             public_tokenizer_data = f.read()
             tokenizer = tokenizer_from_json(public_tokenizer_data)
     except FileNotFoundError:
-        st.error("❌ File 'tokenizer.json' tidak ditemukan.")
+        st.error(f"❌ File tidak ditemukan: {tokenizer_path}")
         return None, None, None, None
 
     # B. LOAD LABEL ENCODER
@@ -48,13 +58,13 @@ def load_model_and_assets():
         with open(label_encoder_path, 'rb') as f:
             le = pickle.load(f)
     except FileNotFoundError:
-        st.error("❌ File 'label_encoder.pkl' tidak ditemukan.")
+        st.error(f"❌ File tidak ditemukan: {label_encoder_path}")
         return None, None, None, None
     
     label2id = {label: idx for idx, label in enumerate(le.classes_)}
     id2label = {idx: label for label, idx in label2id.items()}
 
-    # C. DEFINISI ARSITEKTUR MODEL (Fixed according to H5)
+    # C. DEFINISI ARSITEKTUR MODEL (Sesuai diagnosa file .h5 sebelumnya)
     vocab_size = 30000     
     embedding_dim = 200    
     max_len = 40           
@@ -63,10 +73,10 @@ def load_model_and_assets():
     inputs = Input(shape=(max_len,))
     x = Embedding(input_dim=vocab_size, output_dim=embedding_dim)(inputs)
     x = SpatialDropout1D(0.4)(x)
-    x = Bidirectional(LSTM(32, return_sequences=True))(x) # 32 units
-    x = Conv1D(64, kernel_size=3, padding='same', activation='relu')(x) # 64 filters
+    x = Bidirectional(LSTM(32, return_sequences=True))(x) # 32 units sesuai h5
+    x = Conv1D(64, kernel_size=3, padding='same', activation='relu')(x) # 64 filters sesuai h5
     x = GlobalMaxPooling1D()(x)
-    x = Dense(64, activation='relu')(x) # 64 units
+    x = Dense(64, activation='relu')(x) # 64 units sesuai h5
     x = Dropout(0.5)(x)
     outputs = Dense(num_classes, activation='softmax')(x)
 
@@ -77,6 +87,7 @@ def load_model_and_assets():
         model.load_weights(model_path)
     except Exception as e:
         st.error(f"❌ Gagal memuat bobot model: {e}")
+        st.info(f"Path model yang dicoba: {model_path}")
         return None, None, None, None
     
     return model, tokenizer, id2label, max_len
@@ -88,13 +99,13 @@ def main_streamlit():
     st.set_page_config(page_title="Deep Learning Emotion Detection", layout="centered")
     
     st.title("🔮 Analisis Sentimen & Emosi")
-    st.caption("Model: BiLSTM (32) + CNN (64) + Dense (64)")
+    st.caption("Model: BiLSTM + CNN (Structured Repo Version)")
 
-    # Load Model (Wajib di awal)
+    # Load Model
     model, tokenizer, id2label, max_len = load_model_and_assets()
 
     if model is None:
-        st.warning("Aplikasi tidak dapat berjalan karena file aset bermasalah.")
+        st.warning("Aplikasi tidak dapat berjalan karena file aset tidak ditemukan.")
         st.stop()
 
     # --- FITUR 1: PREDIKSI MANUAL ---
@@ -138,12 +149,15 @@ def main_streamlit():
     
     if st.checkbox("Tampilkan 12 Contoh dengan Confidence Terbaik"):
         try:
-            # Cari file test.csv di folder yang sama dengan script
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            test_path = os.path.join(script_dir, "data", "test.csv")
+            # --- PERBAIKAN PATH DATASET ---
+            current_dir = os.path.dirname(os.path.abspath(__file__)) # .../app
+            project_root = os.path.dirname(current_dir)              # .../root
+            
+            # File test.csv ada di folder 'data' di root
+            test_path = os.path.join(project_root, 'data', 'test.csv')
             
             if not os.path.exists(test_path):
-                st.error("File test.csv tidak ditemukan di folder aplikasi.")
+                st.error(f"File test.csv tidak ditemukan di: {test_path}")
             else:
                 df_test = pd.read_csv(test_path)
                 st.info(f"Memproses {len(df_test)} data dari test.csv...")
@@ -173,7 +187,7 @@ def main_streamlit():
                 df_results['confidence'] = confidences
                 
                 # Tampilkan Top 3 per Kategori
-                st.write("### 🔥 Top 3 Teks Paling Yakin (Highest Confidence) per Kategori")
+                st.write("### 🔥 Top 3 Teks Paling Yakin per Kategori")
                 
                 unique_labels = sorted(list(set(pred_labels)))
                 
@@ -184,8 +198,7 @@ def main_streamlit():
                     top_df = df_results[df_results['pred_label'] == label].sort_values(by='confidence', ascending=False).head(3)
                     
                     for _, row in top_df.iterrows():
-                        # Warna-warni expander berdasarkan label agar cantik
-                        with st.expander(f"🎯 {row['confidence']*100:.1f}% Confidence - {row['tweets'][:60]}..."):
+                        with st.expander(f"🎯 {row['confidence']*100:.1f}% - {row['tweets'][:60]}..."):
                             st.write(f"**Teks Asli:** {row['tweets']}")
                             st.write(f"**Label Asli:** {row.get('class', 'N/A')}")
                             st.write(f"**Prediksi:** {row['pred_label']}")
