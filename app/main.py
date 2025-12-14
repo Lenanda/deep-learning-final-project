@@ -20,18 +20,18 @@ from tensorflow.keras.layers import (Embedding, SpatialDropout1D, Bidirectional,
 # ==========================================
 st.set_page_config(
     page_title="Emotion & Sentiment Analysis",
-    layout="wide", # Wide layout for better visualization
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ==========================================
-# 1. CLEANING FUNCTION (Matches main3.ipynb)
+# 1. CLEANING FUNCTION
 # ==========================================
 def clean_text(text):
     text = str(text).lower()
     text = re.sub(r"http\S+|www\S+", " ", text)
     text = re.sub(r"@\w+", " ", text)
-    text = re.sub(r"#\w+", " ", text)   # Completely remove hashtags
+    text = re.sub(r"#\w+", " ", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
@@ -43,25 +43,17 @@ def load_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(current_dir)
     train_path = os.path.join(project_root, 'data', 'train.csv')
-    test_path = os.path.join(project_root, 'data', 'test.csv')
     
     df_train = None
-    df_test = None
 
+    # Load Train Data for EDA
     if os.path.exists(train_path):
         df_train = pd.read_csv(train_path)
-        # Filter according to main3.ipynb logic
         df_train.dropna(subset=['tweets', 'class'], inplace=True)
         df_train = df_train[df_train['class'] != 'figurative']
         df_train['clean_text'] = df_train['tweets'].apply(clean_text)
-    
-    if os.path.exists(test_path):
-        df_test = pd.read_csv(test_path)
-        df_test.dropna(subset=['tweets', 'class'], inplace=True) # Ensure class exists for evaluation
-        df_test = df_test[df_test['class'] != 'figurative']
-        df_test['clean_text'] = df_test['tweets'].apply(clean_text)
         
-    return df_train, df_test
+    return df_train
 
 # ==========================================
 # 3. LOAD MODEL & ASSETS (Cached)
@@ -75,7 +67,6 @@ def load_model_and_assets():
     label_encoder_path = os.path.join(project_root, 'assets', 'label_encoder.pkl')
     model_path = os.path.join(project_root, 'assets', 'best_bilstm_attention.h5')
 
-    # Load Tokenizer
     try:
         with open(tokenizer_path, 'r') as f:
             public_tokenizer_data = f.read()
@@ -84,7 +75,6 @@ def load_model_and_assets():
         st.error("❌ Tokenizer not found.")
         return None, None, None, None
 
-    # Load Label Encoder
     try:
         with open(label_encoder_path, 'rb') as f:
             le = pickle.load(f)
@@ -95,7 +85,6 @@ def load_model_and_assets():
     label2id = {label: idx for idx, label in enumerate(le.classes_)}
     id2label = {idx: label for label, idx in label2id.items()}
 
-    # Model Architecture (Attention BiLSTM)
     vocab_size = 30000 
     embedding_dim = 200    
     max_len = 80            
@@ -131,14 +120,13 @@ def show_eda_page(df_train):
     st.header("📊 Exploratory Data Analysis (EDA)")
     
     if df_train is None:
-        st.warning("Training Data not found. Ensure 'data/train.csv' exists.")
+        st.warning("Training Data not found.")
         return
 
     st.write(f"**Total Training Data (Cleaned):** {len(df_train)} rows")
     st.write("Data filtered: 'figurative' class removed & text cleaned.")
 
     col1, col2 = st.columns(2)
-    
     with col1:
         st.subheader("Class Distribution")
         fig, ax = plt.subplots()
@@ -148,61 +136,49 @@ def show_eda_page(df_train):
         
     with col2:
         st.subheader("Text Length Distribution")
-        # Calculate word count
         df_train['word_count'] = df_train['clean_text'].apply(lambda x: len(str(x).split()))
         fig, ax = plt.subplots()
         sns.histplot(df_train['word_count'], bins=30, kde=True, color='purple', ax=ax)
-        plt.title("Word Count Distribution per Tweet")
+        plt.title("Word Count Distribution")
         st.pyplot(fig)
 
-    st.subheader("Data Samples (Raw vs Cleaned)")
-    st.dataframe(df_train[['tweets', 'clean_text', 'class']].head(10))
+    st.subheader("Data Samples")
+    st.dataframe(df_train[['tweets', 'clean_text', 'class']].head(5))
 
 # ==========================================
-# 5. PAGE: EVALUATION RESULTS
+# 5. PAGE: EVALUATION RESULTS (UPDATED: IMAGES)
 # ==========================================
-def show_evaluation_page(model, tokenizer, max_len, le, df_test):
+def show_evaluation_page():
     st.header("📈 Model Evaluation Results")
+    st.info("The following results are obtained from the test dataset evaluation.")
 
-    # 1. Training vs Validation Loss
-    st.subheader("1. Training vs Validation Loss")
-    st.info("⚠️ Historical Loss charts are only available in the Notebook. Here we display real-time evaluation on Test Data.")
+    # Setup path ke folder assets
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(current_dir)
     
-    if df_test is None:
-        st.warning("Test Data not found for evaluation.")
-        return
+    # Path gambar (Pastikan nama file sesuai!)
+    cls_report_path = os.path.join(project_root, 'assets', 'classification_report.png')
+    cm_path = os.path.join(project_root, 'assets', 'confusion_matrix.png')
 
-    # Run Bulk Prediction on Test Data
-    if st.button("Run Evaluation on Test Data (May take a moment)"):
-        with st.spinner("Processing predictions..."):
-            # Preprocessing
-            texts = df_test['clean_text'].astype(str).tolist()
-            seqs = tokenizer.texts_to_sequences(texts)
-            pads = pad_sequences(seqs, maxlen=max_len, padding='post', truncating='post')
-            
-            # Predict
-            y_pred_probs = model.predict(pads, verbose=0)
-            y_pred = y_pred_probs.argmax(axis=1)
-            
-            # True Labels
-            y_true = le.transform(df_test['class'])
-            target_names = [str(cls) for cls in le.classes_]
+    col1, col2 = st.columns(2)
 
-            # 2. Classification Report
-            st.subheader("2. Classification Report")
-            report_dict = classification_report(y_true, y_pred, target_names=target_names, output_dict=True)
-            df_report = pd.DataFrame(report_dict).transpose()
-            st.dataframe(df_report.style.highlight_max(axis=0))
+    # Tampilkan Gambar 1: Classification Report
+    with col1:
+        st.subheader("1. Classification Report")
+        if os.path.exists(cls_report_path):
+            st.image(cls_report_path, caption="Precision, Recall, F1-Score per Class", use_container_width=True)
+        else:
+            st.error(f"Image not found: {cls_report_path}")
+            st.warning("Please save your classification report screenshot as 'classification_report.png' in the 'assets' folder.")
 
-            # 3. Confusion Matrix
-            st.subheader("3. Confusion Matrix")
-            cm = confusion_matrix(y_true, y_pred)
-            
-            fig, ax = plt.subplots(figsize=(8, 6))
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=target_names, yticklabels=target_names, ax=ax)
-            plt.xlabel('Predicted')
-            plt.ylabel('Actual')
-            st.pyplot(fig)
+    # Tampilkan Gambar 2: Confusion Matrix
+    with col2:
+        st.subheader("2. Confusion Matrix")
+        if os.path.exists(cm_path):
+            st.image(cm_path, caption="Confusion Matrix Visualization", use_container_width=True)
+        else:
+            st.error(f"Image not found: {cm_path}")
+            st.warning("Please save your confusion matrix screenshot as 'confusion_matrix.png' in the 'assets' folder.")
 
 # ==========================================
 # 6. PAGE: INPUT & PREDICTION
@@ -232,7 +208,6 @@ def show_prediction_page(model, tokenizer, id2label, max_len):
                 st.success(f"Prediction: **{str(pred_label).upper()}**")
                 st.metric("Confidence Score", f"{confidence:.2f}%")
                 
-                # Expanders for details
                 with st.expander("View Preprocessing Result"):
                     st.code(cleaned)
             else:
@@ -257,8 +232,8 @@ def main():
         st.stop()
     model, tokenizer, id2label, max_len, le = load_result
 
-    # Load Data
-    df_train, df_test = load_data()
+    # Load Data (Only Train needed for EDA now)
+    df_train = load_data()
 
     # Sidebar Navigation
     st.sidebar.title("Navigation")
@@ -275,7 +250,7 @@ def main():
     if page == "1. EDA (Exploratory Data Analysis)":
         show_eda_page(df_train)
     elif page == "2. Model Evaluation Results":
-        show_evaluation_page(model, tokenizer, max_len, le, df_test)
+        show_evaluation_page() # Tidak butuh argumen lagi
     elif page == "3. Prediction & Demo":
         show_prediction_page(model, tokenizer, id2label, max_len)
 
