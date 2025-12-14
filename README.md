@@ -1,17 +1,21 @@
-# Deep Learning Emotion Detection
+# 🎭 Emotion & Sarcasm Detection using BiLSTM-Attention
 
-Project ini adalah aplikasi web berbasis Streamlit untuk mendeteksi emosi dari teks (tweet) menggunakan metode Deep Learning (BiLSTM + CNN).
+This repository contains the final project for Deep Learning Text Classification. The project focuses on detecting emotions, specifically Sarcasm and Irony, using a hybrid Deep Learning model (BiLSTM with Self-Attention Mechanism).
 
-## 📂 Struktur Project
-Project ini disusun dengan struktur sebagai berikut:
-- `assets/`: Menyimpan model `.h5`, `tokenizer.json`, dan `label_encoder.pkl`.
-- `data/`: Menyimpan dataset (`train.csv` & `test.csv`).
-- `notebooks/`: File Jupyter Notebook untuk eksplorasi dan training model.
-- `main.py`: Script utama aplikasi Streamlit.
+## 🚀 Features
+- **Exploratory Data Analysis (EDA)**: Visualizing class distribution and text length.
+- **Deep Learning Model**: Bidirectional LSTM + Attention Layer for capturing context.
+- **Web App**: Interactive Streamlit dashboard for real-time inference.
 
-## 🚀 Cara Menjalankan Aplikasi
+## 📂 Project Structure
+- `app/`: Streamlit application source code.
+- `assets/`: Trained models (`.h5`), Tokenizer, and Label Encoders.
+- `data/`: Dataset (Train/Test).
+- `notebooks/`: Jupyter notebooks for training and experiments.
 
-### 1. Clone Repository
-```bash
-git clone [https://github.com/](https://github.com/)[USERNAME_GITHUB_ANDA]/deep-learning-final-project.git
-cd deep-learning-final-project
+## 🛠️ Installation & Usage
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/USERNAME/deep-learning-final-project.git](https://github.com/USERNAME/deep-learning-final-project.git)
+   cd deep-learning-final-project
