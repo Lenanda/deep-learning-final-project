@@ -67,24 +67,27 @@ def load_model_and_assets():
     label_encoder_path = os.path.join(project_root, 'assets', 'label_encoder.pkl')
     model_path = os.path.join(project_root, 'assets', 'best_bilstm_attention.h5')
 
+    # LOAD TOKENIZER
     try:
         with open(tokenizer_path, 'r') as f:
             public_tokenizer_data = f.read()
             tokenizer = tokenizer_from_json(public_tokenizer_data)
     except FileNotFoundError:
         st.error("❌ Tokenizer not found.")
-        return None, None, None, None
+        return None  # FIXED: Return single None on error
 
+    # LOAD LABEL ENCODER
     try:
         with open(label_encoder_path, 'rb') as f:
             le = pickle.load(f)
     except FileNotFoundError:
         st.error("❌ Label Encoder not found.")
-        return None, None, None, None
+        return None  # FIXED: Return single None on error
     
     label2id = {label: idx for idx, label in enumerate(le.classes_)}
     id2label = {idx: label for label, idx in label2id.items()}
 
+    # DEFINE MODEL ARCHITECTURE
     vocab_size = 30000 
     embedding_dim = 200    
     max_len = 80            
@@ -102,16 +105,17 @@ def load_model_and_assets():
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
 
+    # LOAD WEIGHTS
     try:
         if not os.path.exists(model_path):
             st.error(f"❌ Model file not found at: {model_path}")
-            return None, None, None, None
+            return None  # FIXED: Return single None on error
         model.load_weights(model_path)
     except Exception as e:
         st.error(f"❌ Failed to load model weights: {e}")
-        return None, None, None, None
+        return None  # FIXED: Return single None on error
     
-    return model, tokenizer, id2label, max_len, le
+    return model, tokenizer, id2label, max_len, le # Success returns 5 values
 
 # ==========================================
 # 4. PAGE: EDA
@@ -146,23 +150,21 @@ def show_eda_page(df_train):
     st.dataframe(df_train[['tweets', 'clean_text', 'class']].head(5))
 
 # ==========================================
-# 5. PAGE: EVALUATION RESULTS (UPDATED: IMAGES)
+# 5. PAGE: EVALUATION RESULTS (IMAGES)
 # ==========================================
 def show_evaluation_page():
     st.header("📈 Model Evaluation Results")
     st.info("The following results are obtained from the test dataset evaluation.")
 
-    # Setup path ke folder assets
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(current_dir)
     
-    # Path gambar (Pastikan nama file sesuai!)
+    # Path gambar
     cls_report_path = os.path.join(project_root, 'assets', 'classification_report.png')
     cm_path = os.path.join(project_root, 'assets', 'confusion_matrix.png')
 
     col1, col2 = st.columns(2)
 
-    # Tampilkan Gambar 1: Classification Report
     with col1:
         st.subheader("1. Classification Report")
         if os.path.exists(cls_report_path):
@@ -171,7 +173,6 @@ def show_evaluation_page():
             st.error(f"Image not found: {cls_report_path}")
             st.warning("Please save your classification report screenshot as 'classification_report.png' in the 'assets' folder.")
 
-    # Tampilkan Gambar 2: Confusion Matrix
     with col2:
         st.subheader("2. Confusion Matrix")
         if os.path.exists(cm_path):
@@ -187,8 +188,6 @@ def show_prediction_page(model, tokenizer, id2label, max_len):
     st.header("🤖 Model Playground (Prediction)")
     st.caption("Architecture: BiLSTM + Attention Mechanism")
     
-    
-
     col1, col2 = st.columns([2, 1])
     
     with col1:
@@ -228,11 +227,15 @@ def show_prediction_page(model, tokenizer, id2label, max_len):
 def main():
     # Load Assets
     load_result = load_model_and_assets()
+    
+    # Check if load failed (result is None)
     if load_result is None:
-        st.stop()
+        st.stop() # Stop execution here if assets missing
+        
+    # Unpack safely (because we know it's not None and has 5 elements)
     model, tokenizer, id2label, max_len, le = load_result
 
-    # Load Data (Only Train needed for EDA now)
+    # Load Data (Train only)
     df_train = load_data()
 
     # Sidebar Navigation
@@ -250,7 +253,7 @@ def main():
     if page == "1. EDA (Exploratory Data Analysis)":
         show_eda_page(df_train)
     elif page == "2. Model Evaluation Results":
-        show_evaluation_page() # Tidak butuh argumen lagi
+        show_evaluation_page()
     elif page == "3. Prediction & Demo":
         show_prediction_page(model, tokenizer, id2label, max_len)
 
