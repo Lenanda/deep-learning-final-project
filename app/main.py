@@ -61,22 +61,34 @@ def load_model_and_assets():
     label2id = {label: idx for idx, label in enumerate(le.classes_)}
     id2label = {idx: label for label, idx in label2id.items()}
 
-    # C. DEFINE MODEL ARCHITECTURE
-    # (Must match the saved .h5 file structure)
+    # C. DEFINE MODEL ARCHITECTURE (Updated based on main3.ipynb)
+    # ---------------------------------------------------------
     vocab_size = 30000     
     embedding_dim = 200    
     max_len = 40           
     num_classes = len(le.classes_) 
 
     inputs = Input(shape=(max_len,))
+    
     x = Embedding(input_dim=vocab_size, output_dim=embedding_dim)(inputs)
     x = SpatialDropout1D(0.4)(x)
-    x = Bidirectional(LSTM(32, return_sequences=True))(x) # 32 units
-    x = Conv1D(64, kernel_size=3, padding='same', activation='relu')(x) # 64 filters
+    
+    # Bi-LSTM Layer (32 units)
+    x = Bidirectional(LSTM(32, return_sequences=True))(x) 
+    
+    # Conv1D Layer (64 filters, kernel 3)
+    x = Conv1D(64, kernel_size=3, padding='same', activation='relu')(x)
+    
     x = GlobalMaxPooling1D()(x)
-    x = Dense(64, activation='relu')(x) # 64 units
-    x = Dropout(0.5)(x)
+    
+    # Dense Layer (64 units)
+    x = Dense(64, activation='relu')(x)
+    
+    # Dropout (Updated to 0.6 based on main3.ipynb)
+    x = Dropout(0.6)(x)
+    
     outputs = Dense(num_classes, activation='softmax')(x)
+    # ---------------------------------------------------------
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
 
@@ -85,6 +97,7 @@ def load_model_and_assets():
         model.load_weights(model_path)
     except Exception as e:
         st.error(f"❌ Failed to load model weights: {e}")
+        st.warning("Ensure that 'best_cnn_bilstm.h5' in the assets folder matches this architecture.")
         return None, None, None, None
     
     return model, tokenizer, id2label, max_len
@@ -96,7 +109,7 @@ def main_streamlit():
     st.set_page_config(page_title="Deep Learning Emotion Detection", layout="centered")
     
     st.title("🔮 Sentiment & Emotion Analysis")
-    st.caption("Architecture: Embedding + BiLSTM (32) + CNN (64) + Dense (64)")
+    st.caption("Model Architecture: BiLSTM (32) + CNN (64) + Dropout (0.6)")
 
     # Load Model
     model, tokenizer, id2label, max_len = load_model_and_assets()
