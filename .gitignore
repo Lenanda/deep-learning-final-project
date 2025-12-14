@@ -1,19 +1,12 @@
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-
-# Environment
 venv/
-env/
 .env
-
-# IDE settings
-.vscode/
-.idea/
 
 # Streamlit
 .streamlit/
 
-# MacOS junk
+# Large Files & Logs
+*.log
 .DS_Store
