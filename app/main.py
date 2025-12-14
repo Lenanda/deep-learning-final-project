@@ -39,7 +39,9 @@ def load_model_and_assets():
     # Define paths to assets
     tokenizer_path = os.path.join(project_root, 'assets', 'tokenizer.json')
     label_encoder_path = os.path.join(project_root, 'assets', 'label_encoder.pkl')
-    model_path = os.path.join(project_root, 'assets', 'best_cnn_bilstm.h5')
+    
+    # UPDATE: Menggunakan nama file baru 'best_bilstm_attention.h5'
+    model_path = os.path.join(project_root, 'assets', 'best_bilstm_attention.h5')
 
     # A. LOAD TOKENIZER
     try:
@@ -61,7 +63,7 @@ def load_model_and_assets():
     label2id = {label: idx for idx, label in enumerate(le.classes_)}
     id2label = {idx: label for label, idx in label2id.items()}
 
-    # C. DEFINE MODEL ARCHITECTURE (Updated based on main3.ipynb)
+    # C. DEFINE MODEL ARCHITECTURE (Sesuai main3.ipynb)
     # ---------------------------------------------------------
     vocab_size = 30000     
     embedding_dim = 200    
@@ -84,7 +86,7 @@ def load_model_and_assets():
     # Dense Layer (64 units)
     x = Dense(64, activation='relu')(x)
     
-    # Dropout (Updated to 0.6 based on main3.ipynb)
+    # Dropout (0.6 sesuai notebook baru)
     x = Dropout(0.6)(x)
     
     outputs = Dense(num_classes, activation='softmax')(x)
@@ -94,10 +96,15 @@ def load_model_and_assets():
 
     # D. LOAD WEIGHTS
     try:
+        # Cek apakah file benar-benar ada sebelum load
+        if not os.path.exists(model_path):
+            st.error(f"❌ Model file not found at: {model_path}")
+            return None, None, None, None
+            
         model.load_weights(model_path)
     except Exception as e:
         st.error(f"❌ Failed to load model weights: {e}")
-        st.warning("Ensure that 'best_cnn_bilstm.h5' in the assets folder matches this architecture.")
+        st.warning(f"Ensure that '{os.path.basename(model_path)}' is uploaded to the 'assets' folder in GitHub.")
         return None, None, None, None
     
     return model, tokenizer, id2label, max_len
